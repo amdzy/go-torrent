@@ -23,11 +23,10 @@ func (h *Handshake) Serialize() []byte {
 	buf := make([]byte, len(h.Pstr)+49)
 	buf[0] = byte(len(h.Pstr))
 	pos := 1
-	pos += copy(buf[pos:], []byte(h.Pstr))
+	pos += copy(buf[pos:], h.Pstr)
 	pos += copy(buf[pos:], make([]byte, 8))
 	pos += copy(buf[pos:], h.InfoHash[:])
 	pos += copy(buf[pos:], h.PeerId[:])
-
 	return buf
 }
 
