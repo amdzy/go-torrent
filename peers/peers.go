@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strconv"
 )
 
 type Peer struct {
@@ -12,7 +13,7 @@ type Peer struct {
 }
 
 func Unmarshal(peersBin []byte) ([]Peer, error) {
-	const peerSize = 6 // 4 for IP, 2 for port
+	const peerSize = 6
 	numPeers := len(peersBin) / peerSize
 	if len(peersBin)%peerSize != 0 {
 		err := fmt.Errorf("received malformed peers")
@@ -27,6 +28,6 @@ func Unmarshal(peersBin []byte) ([]Peer, error) {
 	return peers, nil
 }
 
-func (p *Peer) String() string {
-	return fmt.Sprintf("%s:%d", p.IP.String(), p.Port)
+func (p Peer) String() string {
+	return net.JoinHostPort(p.IP.String(), strconv.Itoa(int(p.Port)))
 }
