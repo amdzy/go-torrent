@@ -1,14 +1,19 @@
 package utils
 
-import "crypto/rand"
+import (
+	"crypto/rand"
+)
 
-func GeneratePeerId() ([]byte, error) {
+func GeneratePeerId() ([20]byte, error) {
 	peerId := make([]byte, 20)
 	copy(peerId[:8], []byte("-GT0000-"))
 	_, err := rand.Read(peerId[8:])
 	if err != nil {
-		return nil, err
+		return [20]byte{}, err
 	}
 
-	return peerId, nil
+	var peerID [20]byte
+	copy(peerID[:], peerId)
+
+	return peerID, nil
 }
