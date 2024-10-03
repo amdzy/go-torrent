@@ -1,6 +1,6 @@
 # go-torrent
 
-Tiny BitTorrent client written in Go.
+Tiny BitTorrent client written in Go for educational purposes.
 
 ## Install
 
