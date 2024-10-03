@@ -1,6 +1,8 @@
 package torrentfile
 
 import (
+	"amdzy/go-torrent/p2p"
+	"amdzy/go-torrent/utils"
 	"bytes"
 	"crypto/sha1"
 	"fmt"
@@ -9,19 +11,7 @@ import (
 	"github.com/jackpal/bencode-go"
 )
 
-type bencodeInfo struct {
-	Name        string `bencode:"name"`
-	Length      int    `bencode:"length"`
-	Pieces      string `bencode:"pieces"`
-	PieceLength int    `bencode:"piece length"`
-}
-
-type bencodeTorrent struct {
-	Announce     string      `bencode:"announce"`
-	Comment      string      `bencode:"announce"`
-	CreationDate int         `bencode:"creation date"`
-	Info         bencodeInfo `bencode:"info"`
-}
+const Port uint16 = 6881
 
 type TorrentFile struct {
 	Announce    string
@@ -32,46 +22,68 @@ type TorrentFile struct {
 	Name        string
 }
 
-func Open(path string) (*TorrentFile, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	bt := bencodeTorrent{}
-	err = bencode.Unmarshal(file, &bt)
-	if err != nil {
-		return nil, err
-	}
-
-	torrent, err := bt.toTorrentFile()
-	if err != nil {
-		return nil, err
-	}
-
-	return torrent, nil
+type bencodeInfo struct {
+	Pieces      string `bencode:"pieces"`
+	PieceLength int    `bencode:"piece length"`
+	Length      int    `bencode:"length"`
+	Name        string `bencode:"name"`
 }
 
-func (bt *bencodeTorrent) toTorrentFile() (*TorrentFile, error) {
-	infoHash, err := bt.Info.hash()
+type bencodeTorrent struct {
+	Announce string      `bencode:"announce"`
+	Info     bencodeInfo `bencode:"info"`
+}
+
+func (t *TorrentFile) DownloadToFile(path string) error {
+	peerId, err := utils.GeneratePeerId()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	piecesHashes, err := bt.Info.splitPieceHashes()
+	peers, err := t.requestPeers(peerId, Port)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	torrentFile := TorrentFile{
-		Announce:    bt.Announce,
-		Name:        bt.Info.Name,
-		Length:      bt.Info.Length,
-		InfoHash:    infoHash,
-		PieceHashes: piecesHashes,
+	torrent := p2p.Torrent{
+		Peers:       peers,
+		PeerId:      peerId,
+		InfoHash:    t.InfoHash,
+		PieceHashes: t.PieceHashes,
+		PieceLength: t.PieceLength,
+		Length:      t.Length,
+		Name:        t.Name,
+	}
+	buf, err := torrent.Download()
+	if err != nil {
+		return err
 	}
 
-	return &torrentFile, nil
+	outFile, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+	_, err = outFile.Write(buf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func Open(path string) (TorrentFile, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return TorrentFile{}, err
+	}
+	defer file.Close()
+
+	bto := bencodeTorrent{}
+	err = bencode.Unmarshal(file, &bto)
+	if err != nil {
+		return TorrentFile{}, err
+	}
+	return bto.toTorrentFile()
 }
 
 func (bi *bencodeInfo) hash() ([20]byte, error) {
@@ -101,4 +113,24 @@ func (bi *bencodeInfo) splitPieceHashes() ([][20]byte, error) {
 		copy(hashes[i][:], buf[i*hashLen:(i+1)*hashLen])
 	}
 	return hashes, nil
+}
+
+func (bto *bencodeTorrent) toTorrentFile() (TorrentFile, error) {
+	infoHash, err := bto.Info.hash()
+	if err != nil {
+		return TorrentFile{}, err
+	}
+	pieceHashes, err := bto.Info.splitPieceHashes()
+	if err != nil {
+		return TorrentFile{}, err
+	}
+	t := TorrentFile{
+		Announce:    bto.Announce,
+		InfoHash:    infoHash,
+		PieceHashes: pieceHashes,
+		PieceLength: bto.Info.PieceLength,
+		Length:      bto.Info.Length,
+		Name:        bto.Info.Name,
+	}
+	return t, nil
 }

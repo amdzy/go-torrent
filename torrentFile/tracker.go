@@ -20,7 +20,6 @@ func (t *TorrentFile) buildTrackerURL(peerId [20]byte, port uint16) (string, err
 	if err != nil {
 		return "", err
 	}
-
 	params := url.Values{
 		"info_hash":  []string{string(t.InfoHash[:])},
 		"peer_id":    []string{string(peerId[:])},
@@ -30,12 +29,11 @@ func (t *TorrentFile) buildTrackerURL(peerId [20]byte, port uint16) (string, err
 		"compact":    []string{"1"},
 		"left":       []string{strconv.Itoa(t.Length)},
 	}
-
 	base.RawQuery = params.Encode()
 	return base.String(), nil
 }
 
-func (t *TorrentFile) RequestPeers(peerId [20]byte, port uint16) ([]peers.Peer, error) {
+func (t *TorrentFile) requestPeers(peerId [20]byte, port uint16) ([]peers.Peer, error) {
 	url, err := t.buildTrackerURL(peerId, port)
 	if err != nil {
 		return nil, err
@@ -46,7 +44,6 @@ func (t *TorrentFile) RequestPeers(peerId [20]byte, port uint16) ([]peers.Peer, 
 	if err != nil {
 		return nil, err
 	}
-
 	defer res.Body.Close()
 
 	trackerRes := bencodeTrackerResp{}
